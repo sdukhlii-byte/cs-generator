@@ -16,6 +16,7 @@ from __future__ import annotations
 import datetime
 import logging
 
+import cloudscraper
 import requests
 from bs4 import BeautifulSoup
 
@@ -27,11 +28,12 @@ log = logging.getLogger("hltv_fixtures")
 BASE = "https://www.hltv.org"
 MATCHES_URL = f"{BASE}/matches"
 HTTP_TIMEOUT = 20
-HEADERS = {
-    "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                   "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"),
-    "Accept-Language": "en-US,en;q=0.9",
-}
+HEADERS = {"Accept-Language": "en-US,en;q=0.9"}
+
+# См. подробный комментарий в cs_stats.py — HLTV блокирует голый `requests`
+# на уровне Cloudflare-челленджа, не заголовков. Одна сессия на процесс.
+_scraper = cloudscraper.create_scraper(
+    browser={"browser": "chrome", "platform": "windows", "mobile": False})
 
 
 class NoFixturesFound(RuntimeError):
@@ -92,7 +94,7 @@ def fetch(days_ahead: int | None = None, per_run: int | None = None,
     min_stars = env_int("MIN_STARS", 3, lo=0, hi=5) if min_stars is None else min_stars
 
     try:
-        r = requests.get(MATCHES_URL, headers=HEADERS, timeout=HTTP_TIMEOUT)
+        r = _scraper.get(MATCHES_URL, headers=HEADERS, timeout=HTTP_TIMEOUT)
         r.raise_for_status()
     except requests.RequestException as e:
         raise RuntimeError(f"Не скачал {MATCHES_URL}: {e}") from e

@@ -39,6 +39,7 @@ from __future__ import annotations
 import logging
 import re
 
+import cloudscraper
 import requests
 from bs4 import BeautifulSoup
 
@@ -46,19 +47,25 @@ log = logging.getLogger("cs_stats")
 
 BASE = "https://www.hltv.org"
 HTTP_TIMEOUT = 20
-# HLTV режет запросы без правдоподобного браузерного User-Agent почти сразу.
-HEADERS = {
-    "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                   "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"),
-    "Accept-Language": "en-US,en;q=0.9",
-}
+HEADERS = {"Accept-Language": "en-US,en;q=0.9"}
+
+# HLTV сидит за Cloudflare, который режет голый `requests` (в том числе с
+# честным браузерным User-Agent) ещё до отдачи контента — не по заголовкам,
+# а по JS-челленджу/TLS-отпечатку. cloudscraper решает именно этот челлендж
+# (создаёт один "browser-like" TLS-сеанс и переиспользует его). Гарантий это
+# не даёт — если Cloudflare когда-нибудь поднимет защиту до Turnstile-капчи,
+# понадобится headless-браузер или платный API, — но это самый дешёвый
+# рабочий вариант на сейчас. Сессия создаётся один раз на процесс: пересоздание
+# на каждый запрос теряет решённый челлендж и требует решать его заново.
+_scraper = cloudscraper.create_scraper(
+    browser={"browser": "chrome", "platform": "windows", "mobile": False})
 
 
 def _get(url: str) -> BeautifulSoup | None:
     try:
-        r = requests.get(url, headers=HEADERS, timeout=HTTP_TIMEOUT)
+        r = _scraper.get(url, headers=HEADERS, timeout=HTTP_TIMEOUT)
         if r.status_code == 403:
-            log.warning("HLTV отдал 403 на %s — похоже на антибот-блок", url)
+            log.warning("HLTV отдал 403 на %s — даже cloudscraper не решил челлендж", url)
             return None
         r.raise_for_status()
         return BeautifulSoup(r.text, "html.parser")

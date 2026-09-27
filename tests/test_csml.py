@@ -215,7 +215,7 @@ def test_fetch_raises_no_fixtures_when_below_star_threshold(monkeypatch):
         def raise_for_status(self):
             pass
 
-    monkeypatch.setattr(hltv_fixtures.requests, "get", lambda *a, **k: FakeResp())
+    monkeypatch.setattr(hltv_fixtures._scraper, "get", lambda *a, **k: FakeResp())
     monkeypatch.setattr(hltv_fixtures.state, "already_posted", lambda keys: set())
     try:
         hltv_fixtures.fetch(days_ahead=7, per_run=1, min_stars=3)
@@ -232,7 +232,7 @@ def test_fetch_skips_already_posted(monkeypatch):
         def raise_for_status(self):
             pass
 
-    monkeypatch.setattr(hltv_fixtures.requests, "get", lambda *a, **k: FakeResp())
+    monkeypatch.setattr(hltv_fixtures._scraper, "get", lambda *a, **k: FakeResp())
     monkeypatch.setattr(hltv_fixtures.state, "already_posted", lambda keys: keys)
     monkeypatch.setattr(hltv_fixtures.state, "recent_competitions", lambda n: [])
     try:

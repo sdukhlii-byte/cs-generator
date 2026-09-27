@@ -546,8 +546,15 @@ def main() -> None:
             log.warning("%s", e)
             sys.exit(0)
         except Exception as e:
-            log.error("Не удалось получить расписание: %s", e)
-            sys.exit(1)
+            # У HLTV Cloudflare — блок (403) тут гораздо вероятнее и куда менее
+            # "временный", чем у football-data.org: это НЕ повод для exit(1).
+            # Раньше exit(1) на сервисе с restart-on-failure (не Cron Job)
+            # означал рестарт через секунду-две и новый запрос к HLTV — то
+            # есть чем упорнее блокировка, тем чаще мы долбим сайт, что только
+            # закрепляет бан. Выходим тихо (0) и ждём следующего тика
+            # расписания — так же, как при пустом календаре.
+            log.error("Не удалось получить расписание (HLTV заблокировал/недоступен?): %s", e)
+            sys.exit(0)
     elif args.match_file:
         matches = _load_match_file(args.match_file)
     elif args.home and args.away:
